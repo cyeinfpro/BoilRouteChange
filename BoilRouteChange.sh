@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 #
 # 适用系统：Debian/Ubuntu 系列 (apt)
-# 功能：
-#   1. 仅检测网卡 IP 第四段是否以 '0' 结尾。
-#   2. 徹底卸载 cloud-init (及相关配置、日志等)。
-#   3. 跳过 APT Release 文件时间戳验证，避免 "not valid yet" 错误。
-#   4. 让用户选择 0=HKBN,1=Telus,2=Hinet,3=HKT,4=Sony,5=CMHK 以配置附加IP。
-#   5. 卸载 netplan.io, systemd-networkd, network-manager, ifupdown(如已装) 并安装纯 ifupdown。
-#   6. 写入新的 /etc/network/interfaces 配置并 ifdown/ifup 生效。
 
 set -e
 
@@ -67,7 +60,6 @@ else
 fi
 
 #------------------[ 4. 跳过 Release 文件时间戳验证 ]------------------#
-echo "写入 /etc/apt/apt.conf.d/99IgnoreTimestamp，彻底忽略仓库时间戳..."
 cat <<EOF >/etc/apt/apt.conf.d/99IgnoreTimestamp
 Acquire::Check-Valid-Until "false";
 Acquire::Check-Date "false";
@@ -89,7 +81,7 @@ fi
 #------------------[ 6. 让用户选择 ]------------------#
 echo
 echo "检测到 $INTERFACE 的主 IP: $primary_ip"
-echo "可选附加 IP："
+echo "可选附加出口："
 echo "  0 = HKBN"
 echo "  1 = Telus"
 echo "  2 = Hinet"
@@ -127,10 +119,8 @@ fi
 additional_ip="${base}${choice}"
 
 #------------------[ 9. 更新并卸载 netplan 等网络组件 ]------------------#
-echo "开始执行 apt-get update (已忽略仓库时间戳)..."
+echo "开始执行 apt-get update "
 DEBIAN_FRONTEND=noninteractive apt-get update -y
-
-echo "卸载 netplan.io, systemd-networkd, network-manager, ifupdown (如有)..."
 DEBIAN_FRONTEND=noninteractive apt-get purge -y netplan.io systemd-networkd network-manager ifupdown || true
 apt-get autoremove -y
 
@@ -163,7 +153,6 @@ iface $INTERFACE inet static
 
     up ip addr add $additional_ip/24 dev $INTERFACE
     up ip route flush default
-    # 网关依旧写死 192.168.51.1，如与实情不符，请改为正确网关
     up ip route add default via 192.168.51.1 dev $INTERFACE src $additional_ip metric 100
 
     down ip addr del $additional_ip/24 dev $INTERFACE || true
