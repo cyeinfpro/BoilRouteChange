@@ -136,6 +136,5 @@ ifdown "$INTERFACE" || true
 ifup "$INTERFACE"
 
 #------------------[ 9. 显示结果 ]------------------#
-echo "网络已应用。当前 IP："
+echo "出口已变更。当前 IP："
 ip addr show dev "$INTERFACE"
-
