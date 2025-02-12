@@ -78,7 +78,7 @@ else
     echo "不再重复备份。"
 fi
 
-#------------------[ 6. 让用户选择 ]------------------#
+#------------------[ 6. 选择切换的出口 ]------------------#
 echo
 echo "检测到 $INTERFACE 的主 IP: $primary_ip"
 echo "可选附加出口："
@@ -87,7 +87,7 @@ echo "  1 = Telus"
 echo "  2 = Hinet"
 echo "  3 = HKT"
 echo "  4 = Sony"
-echo "  5 = CMHK（未启用）"
+echo "  5 = CMHK"
 echo "  6 = Starlink（未启用）"
 
 read -rp "请选择 (0/1/2/3/4/5/6): " choice
