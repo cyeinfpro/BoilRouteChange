@@ -11,45 +11,41 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 if ! command -v apt &>/dev/null; then
-    echo "当前系统非 Debian/Ubuntu 系列 (无 apt 命令)，脚本不适用。"
+    echo "当前系统非 Debian/Ubuntu 系列，脚本不适用。"
     exit 1
 fi
 
 INTERFACE="eth0"
 
 #------------------[ 2. 检测 eth0 与主 IP ]------------------#
-# 查看系统是否有 $INTERFACE 网卡
 if ! ip link show "$INTERFACE" &>/dev/null; then
     echo "网卡 $INTERFACE 不存在，请先确认网卡名称或修改脚本的 INTERFACE 变量。"
     exit 1
 fi
 
-# 检测主 IP: 192.168.51.x0
 primary_ip=$(ip -4 addr show "$INTERFACE" | grep -oP '(?<=inet\s)192\.168\.51\.\d+' | head -n1)
 if [ -z "$primary_ip" ]; then
-    echo "未在 $INTERFACE 上找到 192.168.51.x 格式的 IP。请先配置 192.168.51.x0 后再执行。"
+    echo "未在 $INTERFACE 上找到 192.168.51.x 格式的 IP。"
     exit 1
 fi
 if [[ "$primary_ip" != *0 ]]; then
-    echo "检测到的主 IP ($primary_ip) 不以 0 结尾 (示例要求：192.168.51.x0)。"
+    echo "检测到的主 IP ($primary_ip) 不以 0 结尾。"
     exit 1
 fi
 
 base="${primary_ip%0}"
 
-#------------------[ 2.1 如只检测到 1 个 IP 且没 HKBN 备份，就自动备份 ]------------------#
-# 检测 $INTERFACE 上的 IPv4 个数
+#------------------[ 初始自动备份 ]------------------#
 ip_count=$(ip -4 addr show "$INTERFACE" | grep -c 'inet ')
 if [ "$ip_count" -eq 1 ]; then
-    # 只有 1 个 IP，且还没有 HKBN 备份文件时，就进行一次备份
     if [ ! -f /etc/network/interfaces.HKBN ]; then
-        echo "当前网卡 $INTERFACE 上仅有 1 个 IP，且未发现 /etc/network/interfaces.HKBN，自动创建 HKBN 备份..."
+        echo "自动创建备份..."
         cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
-        echo "当前仅有 1 个 IP，但已有 HKBN 备份文件 /etc/network/interfaces.HKBN，不再重复备份。"
+        echo "不再重复备份。"
     fi
 else
-    echo "检测到多个 IP 或已绑定附加 IP，不进行 HKBN 备份（或已存在备份）。"
+    echo "不再重复备份。"
 fi
 
 #------------------[ 3. 让用户选择 ]------------------#
@@ -70,14 +66,14 @@ if [[ "$choice" = "0" ]]; then
         echo "未发现 /etc/network/interfaces.HKBN，无法恢复 HKBN 配置！"
         exit 1
     fi
-    echo "已选择 0=HKBN，准备恢复 /etc/network/interfaces.HKBN ..."
+    echo "恢复HKBN"
     cp /etc/network/interfaces.HKBN /etc/network/interfaces
 
     echo "执行 ifdown && ifup ..."
     ifdown "$INTERFACE" || true
     ifup "$INTERFACE"
 
-    echo "恢复完成。当前 IP："
+    echo "出口已变更。当前 IP："
     ip addr show dev "$INTERFACE"
     exit 0
 fi
@@ -131,7 +127,6 @@ echo "已写入新的 /etc/network/interfaces"
 #------------------[ 8. ifdown & ifup ]------------------#
 
 sleep 2
-
 ifdown "$INTERFACE" || true
 ifup "$INTERFACE"
 
