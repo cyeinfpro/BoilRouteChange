@@ -17,29 +17,33 @@ fi
 
 INTERFACE="eth0"
 
-#------------------[ 2. 检测 eth0 与 192.168.51.x0 ]------------------#
+#------------------[ 2. 检测网卡及 IP (仅检查最后一段是否以0结尾) ]------------------#
 if ! ip link show "$INTERFACE" &>/dev/null; then
-    echo "网卡 $INTERFACE 不存在，请确认网卡名称或修改脚本。"
+    echo "网卡 $INTERFACE 不存在，请先确认网卡名称或修改脚本的 INTERFACE 变量。"
     exit 1
 fi
 
-# 仅匹配 192.168.51.x0 形式的 IP
+# 这里用正则匹配最后一段末尾是 '0' 的 IPv4：
+#  - (?<=inet\s) 先行断言保证只匹配 "inet x.x.x.x/xx"
+#  - (\d{1,3}\.){3}\d+0(?=/) 匹配 A.B.C. D 形式，且 D 以 '0' 结尾
 primary_ip=$(ip -4 addr show "$INTERFACE" \
-    | grep -oP '(?<=inet\s)192\.168\.51\.\d+0(?=/)' \
+    | grep -oP '(?<=inet\s)(\d{1,3}\.){3}\d+0(?=/)' \
     | head -n1)
+
 if [ -z "$primary_ip" ]; then
-    echo "未在 $INTERFACE 上找到 192.168.51.x0 格式的 IP（如 192.168.51.10、192.168.51.20 等）"
+    echo "未在 $INTERFACE 上找到最后一段以0结尾的 IPv4 地址 (形如 x.x.x.x0)。"
     exit 1
 fi
 echo "检测到的主 IP：$primary_ip"
 
-base="${primary_ip%0}"  # 去掉末尾的 0，用于后续拼接
+# 从末段去掉最后的 '0'，例如 192.168.51.10 => 192.168.51.1
+base="${primary_ip%0}"
 
 #------------------[ 3. 初始自动备份 ]------------------#
 ip_count=$(ip -4 addr show "$INTERFACE" | grep -c 'inet ')
 if [ "$ip_count" -eq 1 ]; then
     if [ ! -f /etc/network/interfaces.HKBN ]; then
-        echo "自动创建备份..."
+        echo "自动创建备份: /etc/network/interfaces.HKBN"
         cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
         echo "不再重复备份。"
@@ -87,34 +91,27 @@ fi
 additional_ip="${base}${choice}"
 
 #==============================================================
-#     在这里插入时间同步逻辑，避免 apt-get update 报错
+#     先尝试时间同步，以避免 apt-get update 可能的时间戳报错
 #==============================================================
 echo "尝试启用系统时间同步，以避免 Release 文件时间戳错误..."
 
 if command -v timedatectl &>/dev/null; then
     # 开启 NTP
     timedatectl set-ntp true || true
-    
-    # 重启 systemd-timesyncd 让其尽快进行对时
+
+    # 重启 systemd-timesyncd 让其尽快对时
     if systemctl list-unit-files | grep -qw systemd-timesyncd.service; then
         systemctl restart systemd-timesyncd || true
     fi
-    
-    # 等待几秒，让 NTP 对时有机会完成初步同步
+
+    # 等待几秒，让 NTP 同步初步完成
     sleep 5
 else
-    echo "系统中无 timedatectl 命令，请手动确保系统时间正确，或安装 chrony/ntp 服务。"
+    echo "系统中无 timedatectl 命令，请手动确保系统时间正确，或安装 chrony/ntp。"
 fi
 
-#==============================================================
-#    如仍担心因时间不同步导致失败，可临时忽略时间戳
-#    （非必要，若上面对时成功，就能正常 apt-get update）
-#==============================================================
-# APT_OPTS="-o Acquire::Check-Valid-Until=false"
-# 或者写死进命令里:
-# DEBIAN_FRONTEND=noninteractive apt-get $APT_OPTS update -y
-# 这里先默认不开启跳过校验
-#==============================================================
+# （可选）若仍可能报错，可在这里加 -o Acquire::Check-Valid-Until=false
+#DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Check-Valid-Until=false update -y
 
 #------------------[ 7. 更新并卸载 netplan 等 ]------------------#
 DEBIAN_FRONTEND=noninteractive apt-get update -y
@@ -147,23 +144,18 @@ iface $INTERFACE inet static
     address $primary_ip
     netmask 255.255.255.0
     dns-nameservers 8.8.8.8
-    
-    # 让系统在启动时给该网卡额外添加一个IP
+
     up ip addr add $additional_ip/24 dev $INTERFACE
-    
-    # 刷新默认路由，再设置新的默认路由
     up ip route flush default
-    # 下方网关仍固定为 192.168.51.1，如需其他网关请自行修改
+    # 这里的默认网关依然写死为 192.168.51.1，请根据实际需求修改
     up ip route add default via 192.168.51.1 dev $INTERFACE src $additional_ip metric 100
-    
-    # 脚本退出前，从网卡移除该临时IP，避免冲突
+
     down ip addr del $additional_ip/24 dev $INTERFACE || true
 EOF
 
 echo "已写入新的 /etc/network/interfaces"
 
 #------------------[ 9. ifdown & ifup ]------------------#
-
 sleep 2
 ifdown "$INTERFACE" || true
 ifup "$INTERFACE"
