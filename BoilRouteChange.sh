@@ -23,20 +23,18 @@ if ! ip link show "$INTERFACE" &>/dev/null; then
     exit 1
 fi
 
-# 这里用正则匹配最后一段末尾是 '0' 的 IPv4：
-#  - (?<=inet\s) 先行断言保证只匹配 "inet x.x.x.x/xx"
-#  - (\d{1,3}\.){3}\d+0(?=/) 匹配 A.B.C. D 形式，且 D 以 '0' 结尾
+# 这里用正则匹配最后一段末尾是 '0' 的 IPv4
 primary_ip=$(ip -4 addr show "$INTERFACE" \
     | grep -oP '(?<=inet\s)(\d{1,3}\.){3}\d+0(?=/)' \
     | head -n1)
 
 if [ -z "$primary_ip" ]; then
-    echo "未在 $INTERFACE 上找到最后一段以0结尾的 IPv4 地址 (形如 x.x.x.x0)。"
+    echo "未在 $INTERFACE 上找到最后一段以0结尾的 IPv4 地址 (形如 x.x.x.10、x.x.x.20...)。"
     exit 1
 fi
 echo "检测到的主 IP：$primary_ip"
 
-# 从末段去掉最后的 '0'，例如 192.168.51.10 => 192.168.51.1
+# 去掉末尾的 '0'，比如 192.168.51.10 => 192.168.51.1
 base="${primary_ip%0}"
 
 #------------------[ 3. 初始自动备份 ]------------------#
@@ -90,31 +88,21 @@ fi
 
 additional_ip="${base}${choice}"
 
-#==============================================================
-#     先尝试时间同步，以避免 apt-get update 可能的时间戳报错
-#==============================================================
-echo "尝试启用系统时间同步，以避免 Release 文件时间戳错误..."
-
+#---------------------------------------------------------------
+#   若不想引入时间同步，下面这几行可注释或删除
+#---------------------------------------------------------------
+echo "尝试启用系统时间同步 (如无效可忽略)..."
 if command -v timedatectl &>/dev/null; then
-    # 开启 NTP
     timedatectl set-ntp true || true
-
-    # 重启 systemd-timesyncd 让其尽快对时
     if systemctl list-unit-files | grep -qw systemd-timesyncd.service; then
         systemctl restart systemd-timesyncd || true
     fi
-
-    # 等待几秒，让 NTP 同步初步完成
     sleep 5
-else
-    echo "系统中无 timedatectl 命令，请手动确保系统时间正确，或安装 chrony/ntp。"
 fi
 
-# （可选）若仍可能报错，可在这里加 -o Acquire::Check-Valid-Until=false
-#DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Check-Valid-Until=false update -y
-
-#------------------[ 7. 更新并卸载 netplan 等 ]------------------#
-DEBIAN_FRONTEND=noninteractive apt-get update -y
+#------------------[ 7. 更新并卸载 netplan (跳过Release文件时间验证) ]------------------#
+echo "开始更新并卸载 netplan..."
+DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Check-Valid-Until=false update -y
 DEBIAN_FRONTEND=noninteractive apt-get purge -y netplan.io systemd-networkd network-manager ifupdown || true
 apt-get autoremove -y
 
@@ -147,7 +135,7 @@ iface $INTERFACE inet static
 
     up ip addr add $additional_ip/24 dev $INTERFACE
     up ip route flush default
-    # 这里的默认网关依然写死为 192.168.51.1，请根据实际需求修改
+    # 默认网关写死为 192.168.51.1，如与实情不符请修改
     up ip route add default via 192.168.51.1 dev $INTERFACE src $additional_ip metric 100
 
     down ip addr del $additional_ip/24 dev $INTERFACE || true
