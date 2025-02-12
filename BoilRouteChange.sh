@@ -23,17 +23,22 @@ if ! ip link show "$INTERFACE" &>/dev/null; then
     exit 1
 fi
 
-primary_ip=$(ip -4 addr show "$INTERFACE" | grep -oP '(?<=inet\s)192\.168\.51\.\d+' | head -n1)
+# 仅提取首个 IPv4 地址，不再限制必须是 192.168.51.x
+primary_ip=$(ip -4 addr show "$INTERFACE" | grep -oP '(?<=inet\s)(\d{1,3}\.){3}\d{1,3}' | head -n1)
 if [ -z "$primary_ip" ]; then
-    echo "未在 $INTERFACE 上找到 192.168.51.x 格式的 IP。"
+    echo "未在 $INTERFACE 上找到 IPv4 地址。"
     exit 1
 fi
-if [[ "$primary_ip" != *0 ]]; then
+
+# 检查 IP 的最后一段是否为 0
+last_octet=$(echo "$primary_ip" | awk -F '.' '{print $4}')
+if [ "$last_octet" != "0" ]; then
     echo "检测到的主 IP ($primary_ip) 不以 0 结尾。"
     exit 1
 fi
 
-base="${primary_ip%0}"
+# 将 base 部分提取为前三段 + “.”
+base="${primary_ip%.*}."
 
 #------------------[ 初始自动备份 ]------------------#
 ip_count=$(ip -4 addr show "$INTERFACE" | grep -c 'inet ')
@@ -118,6 +123,7 @@ iface $INTERFACE inet static
     dns-nameservers 8.8.8.8
     up ip addr add $additional_ip/24 dev $INTERFACE
     up ip route flush default
+    # 这里的网关仍固定为 192.168.51.1，如有需要可自行改成别的网关
     up ip route add default via 192.168.51.1 dev $INTERFACE src $additional_ip metric 100
     down ip addr del $additional_ip/24 dev $INTERFACE || true
 EOF
