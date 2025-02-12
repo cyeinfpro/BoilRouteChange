@@ -90,7 +90,6 @@ fi
 # 将选项合并到 base 后得到附加 IP，如 base=192.168.51.1, choice=2 => 192.168.51.12
 additional_ip="${base}${choice}"
 
-echo "在 /etc/apt/apt.conf.d/99IgnoreTimestamp 写入配置，跳过时间验证..."
 cat <<EOF >/etc/apt/apt.conf.d/99IgnoreTimestamp
 Acquire::Check-Valid-Until "false";
 Acquire::Check-Date "false";
