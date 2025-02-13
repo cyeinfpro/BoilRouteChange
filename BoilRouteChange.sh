@@ -46,24 +46,6 @@ validate_ip() {
     [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
 }
 
-backup_network_interfaces() {
-    if [ ! -f /etc/network/interfaces.HKBN ]; then
-        echo "自动创建备份: /etc/network/interfaces.HKBN"
-        cp /etc/network/interfaces /etc/network/interfaces.HKBN
-    fi
-}
-
-download_hkbn_backup() {
-    echo "正在尝试从 GitHub 下载..."
-    if curl -fsSL -o /etc/network/interfaces.HKBN "https://raw.githubusercontent.com/cyeinfpro/BoilRouteChange/refs/heads/main/interfaces.HKBN" > /dev/null 2>&1; then
-        echo "成功下载 /etc/network/interfaces.HKBN 文件。"
-    else
-        echo "下载失败，请手动下载文件并放置在 /etc/network 目录下，URL: https://raw.githubusercontent.com/cyeinfpro/BoilRouteChange/refs/heads/main/interfaces.HKBN"
-        exit 1
-    fi
-}
-
-
 update_network_interface() {
     local additional_ip="$1"
     local gateway="$2"
@@ -118,9 +100,6 @@ fi
 
 base="${primary_ip%0}"
 
-#------------------[ 初始自动备份 ]------------------#
-backup_network_interfaces
-
 #------------------[ 让用户选择出口 ]------------------#
 echo "可选附加出口："
 echo "  0 = HKBN"
@@ -135,11 +114,7 @@ echo "  7 = SK Broadband"
 read -rp "请选择 (0/1/2/3/4/5/6/7): " choice
 
 if [[ "$choice" = "0" ]]; then
-    if [ ! -f /etc/network/interfaces.HKBN ]; then
-        download_hkbn_backup
-    fi
-    echo "恢复HKBN配置..."
-    cp /etc/network/interfaces.HKBN /etc/network/interfaces
+    echo "source /etc/network/interfaces.d/*" > /etc/network/interfaces
     reconfigure_network "$INTERFACE"
     echo "出口已变更。当前出口为 HKBN。"
     exit 0
