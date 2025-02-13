@@ -201,6 +201,9 @@ if ! validate_ip "$additional_ip"; then
     exit 1
 fi
 
+#------------------[ 更新接口配置 ]------------------#
+update_network_interface "$additional_ip" "$gateway"
+
 #------------------[ 重新启动网络服务 ]------------------#
 reconfigure_network "$INTERFACE"
 
