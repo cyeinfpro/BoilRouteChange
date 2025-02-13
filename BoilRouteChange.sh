@@ -85,7 +85,7 @@ check_interface "$INTERFACE"
 
 primary_ip=$(get_primary_ip "$INTERFACE")
 if [ -z "$primary_ip" ]; then
-    echo "未在 $INTERFACE 上找到末段以 '0' 结尾的 IPv4 地址(如 192.168.51.10, 10.0.5.20...)。"
+    echo "错误：不是HKBN All In One。"
     exit 1
 fi
 echo "检测到的主 IP：$primary_ip"
@@ -94,7 +94,7 @@ gateway=$(get_default_gateway)
 echo "检测到的默认网关：$gateway"
 
 if ! validate_gateway "$gateway"; then
-    echo "错误：默认网关 $gateway 不在有效范围内。"
+    echo "错误：不是HKBN All In One。"
     exit 1
 fi
 
