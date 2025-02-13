@@ -55,7 +55,7 @@ backup_network_interfaces() {
 
 download_hkbn_backup() {
     echo "正在尝试从 GitHub 下载..."
-    if curl -fsSL -o /etc/network/interfaces.HKBN "https://raw.githubusercontent.com/cyeinfpro/BoilRouteChange/refs/heads/main/interfaces.HKBN"; then
+    if curl -fsSL -o /etc/network/interfaces.HKBN "https://raw.githubusercontent.com/cyeinfpro/BoilRouteChange/refs/heads/main/interfaces.HKBN" > /dev/null 2>&1; then
         echo "成功下载 /etc/network/interfaces.HKBN 文件。"
     else
         echo "下载失败，请手动下载文件并放置在 /etc/network 目录下，URL: https://raw.githubusercontent.com/cyeinfpro/BoilRouteChange/refs/heads/main/interfaces.HKBN"
@@ -63,24 +63,10 @@ download_hkbn_backup() {
     fi
 }
 
-cleanup_old_backups() {
-    local backup_dir="/etc/network"
-    local backups
-    backups=$(ls -t "${backup_dir}/interfaces.bak."* 2>/dev/null)
-    local count
-    count=$(echo "$backups" | wc -l)
-    if [ "$count" -gt 3 ]; then
-        echo "$backups" | tail -n +4 | xargs rm -f
-    fi
-}
 
 update_network_interface() {
     local additional_ip="$1"
     local gateway="$2"
-    local backup_file="/etc/network/interfaces.bak.$(date +%s)"
-    
-    cp /etc/network/interfaces "$backup_file"
-    cleanup_old_backups
 
     cat > /etc/network/interfaces <<EOF
 auto lo
@@ -99,12 +85,13 @@ iface $INTERFACE inet static
     down ip addr del $additional_ip/24 dev $INTERFACE || true
 EOF
 
-    echo "出口配置已更新"
+echo "出口配置已更新，网络将暂时中断" 
+
 }
 
 reconfigure_network() {
-    ifdown "$INTERFACE" || true
-    ifup "$INTERFACE"
+    ifdown "$INTERFACE" > /dev/null 2>&1 || true  # 隐藏 ifdown 输出
+    ifup "$INTERFACE" > /dev/null 2>&1  # 隐藏 ifup 输出
 }
 
 #------------------[ 主逻辑 ]------------------#
@@ -143,8 +130,9 @@ echo "  3 = HKT"
 echo "  4 = Sony"
 echo "  5 = CMHK"
 echo "  6 = Starlink（未启用）"
+echo "  7 = SK Telecom（未启用）"
 
-read -rp "请选择 (0/1/2/3/4/5/6): " choice
+read -rp "请选择 (0/1/2/3/4/5/6/7): " choice
 
 if [[ "$choice" = "0" ]]; then
     if [ ! -f /etc/network/interfaces.HKBN ]; then
@@ -157,7 +145,7 @@ if [[ "$choice" = "0" ]]; then
     exit 0
 fi
 
-if [[ ! "$choice" =~ ^[1-6]$ ]]; then
+if [[ ! "$choice" =~ ^[1-7]$ ]]; then
     echo "无效选择，脚本退出。"
     exit 1
 fi
@@ -185,6 +173,7 @@ export_map=(
     [4]="Sony"
     [5]="CMHK"
     [6]="Starlink（未启用）"
+    [7]="SK Telecom（未启用）"
 )
 
 echo "当前出口为 ${export_map[$choice]}"
