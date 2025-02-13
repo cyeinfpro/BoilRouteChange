@@ -130,7 +130,7 @@ echo "  3 = HKT"
 echo "  4 = Sony"
 echo "  5 = CMHK"
 echo "  6 = Starlink（未启用）"
-echo "  7 = SK Telecom"
+echo "  7 = SK Broadband"
 
 read -rp "请选择 (0/1/2/3/4/5/6/7): " choice
 
@@ -173,7 +173,7 @@ export_map=(
     [4]="Sony"
     [5]="CMHK"
     [6]="Starlink（未启用）"
-    [7]="SK Telecom"
+    [7]="SK Broadband"
 )
 
 echo "当前出口为 ${export_map[$choice]}"
