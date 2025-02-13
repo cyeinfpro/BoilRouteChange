@@ -98,13 +98,13 @@ cleanup_old_backups() {
 update_network_interface() {
     local additional_ip="$1"
     local gateway="$2"
-    echo "生成 /etc/network/interfaces 配置..."
+    echo "生成网卡备份配置..."
     backup_file="/etc/network/interfaces.bak.$(date +%s)"
     
     # 在更新前进行备份
     if [ -f /etc/network/interfaces ]; then
         cp /etc/network/interfaces "$backup_file"
-        echo "已备份原 /etc/network/interfaces => $backup_file"
+        echo "已备份原网卡配置 => $backup_file"
     fi
 
     # 清理过期的备份文件
@@ -127,7 +127,7 @@ iface $INTERFACE inet static
     down ip addr del $additional_ip/24 dev $INTERFACE || true
 EOF
 
-    echo "已写入新的 /etc/network/interfaces"
+    echo "出口配置已更新"
 }
 
 reconfigure_network() {
@@ -165,7 +165,6 @@ base="${primary_ip%0}"
 backup_network_interfaces
 
 #------------------[ 让用户选择出口 ]------------------#
-echo "检测到 $INTERFACE 的主 IP: $primary_ip"
 echo "可选附加出口："
 echo "  0 = HKBN"
 echo "  1 = Telus"
@@ -201,9 +200,6 @@ if ! validate_ip "$additional_ip"; then
     echo "错误：计算出的 IP 地址 $additional_ip 无效。"
     exit 1
 fi
-
-#------------------[ 更新接口配置 ]------------------#
-update_network_interface "$additional_ip" "$gateway"
 
 #------------------[ 重新启动网络服务 ]------------------#
 reconfigure_network "$INTERFACE"
