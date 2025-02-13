@@ -63,7 +63,7 @@ backup_network_interfaces() {
         echo "自动创建备份: /etc/network/interfaces.HKBN"
         cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
-        echo "不再重复备份。"
+        echo "网卡配置备份已经存在，不再重复备份。"
     fi
 }
 
