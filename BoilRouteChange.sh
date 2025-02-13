@@ -63,7 +63,6 @@ backup_network_interfaces() {
         echo "自动创建备份: /etc/network/interfaces.HKBN"
         cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
-        echo "网卡配置备份已经存在，不再重复备份。"
     fi
 }
 
@@ -89,7 +88,6 @@ cleanup_old_backups() {
         local old_backups
         old_backups=$(echo "$backups" | tail -n +4)  # 获取超过三个的备份文件
         echo "$old_backups" | while read -r backup; do
-            echo "删除过期备份文件：$backup"
             rm -f "$backup"
         done
     fi
@@ -98,15 +96,12 @@ cleanup_old_backups() {
 update_network_interface() {
     local additional_ip="$1"
     local gateway="$2"
-    echo "生成网卡备份配置..."
     backup_file="/etc/network/interfaces.bak.$(date +%s)"
     
     # 在更新前进行备份
     if [ -f /etc/network/interfaces ]; then
         cp /etc/network/interfaces "$backup_file"
-        echo "已备份原网卡配置 => $backup_file"
     fi
-
     # 清理过期的备份文件
     cleanup_old_backups
 
