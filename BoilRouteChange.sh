@@ -166,7 +166,7 @@ echo "  2 = Hinet"
 echo "  3 = HKT"
 echo "  4 = Sony"
 echo "  5 = CMHK"
-echo "  6 = Starlink"
+echo "  6 = Starlink(未启用)"
 
 read -rp "请选择 (0/1/2/3/4/5/6): " choice
 
