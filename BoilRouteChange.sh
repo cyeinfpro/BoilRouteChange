@@ -63,6 +63,7 @@ backup_network_interfaces() {
         echo "自动创建备份: /etc/network/interfaces.HKBN"
         cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
+        return 0
     fi
 }
 
