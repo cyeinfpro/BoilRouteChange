@@ -33,30 +33,35 @@ get_primary_ip() {
     ip -4 addr show "$interface" | grep -oP '(?<=inet\s)(\d{1,3}\.){3}\d+0(?=/)' | head -n1
 }
 
-remove_cloud_init() {
-    echo "检测并卸载 cloud-init 中..."
-    if dpkg -l | grep -qw cloud-init; then
-        echo "检测到 cloud-init，开始卸载..."
-        systemctl disable cloud-init.service --now || true
-        systemctl stop cloud-init.service || true
-        apt-get purge -y cloud-init
-        rm -rf /etc/cloud /var/lib/cloud /var/log/cloud-init.log /var/log/cloud-init-output.log
-        echo "cloud-init 已彻底卸载并清理。"
+get_default_gateway() {
+    # 获取当前的默认网关
+    ip route | grep default | awk '{print $3}'
+}
+
+validate_gateway() {
+    local gateway="$1"
+    # 检查网关是否在 192.168.51.1 到 192.168.59.1 范围内
+    if [[ "$gateway" =~ ^192\.168\.(5[1-9]|[1-4][0-9])\.1$ ]]; then
+        return 0
     else
-        echo "系统中未检测到 cloud-init，跳过卸载。"
+        return 1
+    fi
+}
+
+validate_ip() {
+    local ip="$1"
+    # 检查 IP 格式是否有效
+    if [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        return 0
+    else
+        return 1
     fi
 }
 
 backup_network_interfaces() {
-    local ip_count
-    ip_count=$(ip -4 addr show "$INTERFACE" | grep -c 'inet ')
-    if [ "$ip_count" -eq 1 ]; then
-        if [ ! -f /etc/network/interfaces.HKBN ]; then
-            echo "自动创建备份: /etc/network/interfaces.HKBN"
-            cp /etc/network/interfaces /etc/network/interfaces.HKBN
-        else
-            echo "不再重复备份。"
-        fi
+    if [ ! -f /etc/network/interfaces.HKBN ]; then
+        echo "自动创建备份: /etc/network/interfaces.HKBN"
+        cp /etc/network/interfaces /etc/network/interfaces.HKBN
     else
         echo "不再重复备份。"
     fi
@@ -74,12 +79,14 @@ download_hkbn_backup() {
 }
 
 cleanup_old_backups() {
-    backup_dir="/etc/network"
-    backups=$(ls -t ${backup_dir}/interfaces.bak.* 2>/dev/null)  # 按时间排序备份文件
+    local backup_dir="/etc/network"
+    local backups
+    backups=$(ls -t "${backup_dir}/interfaces.bak."* 2>/dev/null)  # 按时间排序备份文件
 
-    # 保留最新的三个备份文件，删除多余的
+    local count
     count=$(echo "$backups" | wc -l)
     if [ "$count" -gt 3 ]; then
+        local old_backups
         old_backups=$(echo "$backups" | tail -n +4)  # 获取超过三个的备份文件
         echo "$old_backups" | while read -r backup; do
             echo "删除过期备份文件：$backup"
@@ -90,6 +97,7 @@ cleanup_old_backups() {
 
 update_network_interface() {
     local additional_ip="$1"
+    local gateway="$2"
     echo "生成 /etc/network/interfaces 配置..."
     backup_file="/etc/network/interfaces.bak.$(date +%s)"
     
@@ -114,7 +122,7 @@ iface $INTERFACE inet static
 
     up ip addr add $additional_ip/24 dev $INTERFACE
     up ip route flush default
-    up ip route add default via 192.168.51.1 dev $INTERFACE src $additional_ip metric 100
+    up ip route add default via $gateway dev $INTERFACE src $additional_ip metric 100
 
     down ip addr del $additional_ip/24 dev $INTERFACE || true
 EOF
@@ -142,10 +150,16 @@ if [ -z "$primary_ip" ]; then
 fi
 echo "检测到的主 IP：$primary_ip"
 
-base="${primary_ip%0}"
+gateway=$(get_default_gateway)
+echo "检测到的默认网关：$gateway"
 
-#------------------[ 卸载 cloud-init ]------------------#
-remove_cloud_init
+# 检查默认网关是否在 192.168.51.1 到 192.168.59.1 范围内
+if ! validate_gateway "$gateway"; then
+    echo "错误：默认网关 $gateway 不在有效范围内。"
+    exit 1
+fi
+
+base="${primary_ip%0}"
 
 #------------------[ 跳过 Release 文件时间戳验证 ]------------------#
 cat <<EOF >/etc/apt/apt.conf.d/99IgnoreTimestamp
@@ -157,7 +171,6 @@ EOF
 backup_network_interfaces
 
 #------------------[ 让用户选择出口 ]------------------#
-echo
 echo "检测到 $INTERFACE 的主 IP: $primary_ip"
 echo "可选附加出口："
 echo "  0 = HKBN"
@@ -166,7 +179,7 @@ echo "  2 = Hinet"
 echo "  3 = HKT"
 echo "  4 = Sony"
 echo "  5 = CMHK"
-echo "  6 = Starlink(未启用)"
+echo "  6 = Starlink（未启用）"
 
 read -rp "请选择 (0/1/2/3/4/5/6): " choice
 
@@ -177,8 +190,7 @@ if [[ "$choice" = "0" ]]; then
     echo "恢复HKBN配置..."
     cp /etc/network/interfaces.HKBN /etc/network/interfaces
     reconfigure_network "$INTERFACE"
-    echo "出口已变更。当前 IP："
-    ip addr show dev "$INTERFACE"
+    echo "出口已变更。当前出口为 HKBN。"
     exit 0
 fi
 
@@ -189,6 +201,12 @@ fi
 
 # 计算附加 IP
 additional_ip="${base}${choice}"
+
+# 验证 IP 格式是否有效
+if ! validate_ip "$additional_ip"; then
+    echo "错误：计算出的 IP 地址 $additional_ip 无效。"
+    exit 1
+fi
 
 #------------------[ 更新网络组件并卸载不必要的组件 ]------------------#
 echo "开始执行 apt-get update "
@@ -205,7 +223,35 @@ if [ -d /etc/netplan ]; then
 fi
 
 #------------------[ 更新接口配置 ]------------------#
-update_network_interface "$additional_ip"
+update_network_interface "$additional_ip" "$gateway"
 
 #------------------[ 重新启动网络服务 ]------------------#
 reconfigure_network "$INTERFACE"
+
+#------------------[ 展示当前出口 ]------------------#
+case "$choice" in
+    0)
+        echo "当前出口为 HKBN。"
+        ;;
+    1)
+        echo "当前出口为 Telus。"
+        ;;
+    2)
+        echo "当前出口为 Hinet。"
+        ;;
+    3)
+        echo "当前出口为 HKT。"
+        ;;
+    4)
+        echo "当前出口为 Sony。"
+        ;;
+    5)
+        echo "当前出口为 CMHK。"
+        ;;
+    6)
+        echo "当前出口为 Starlink（未启用）。"
+        ;;
+    *)
+        echo "未知出口配置。"
+        ;;
+esac
