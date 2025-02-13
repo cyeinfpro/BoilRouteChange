@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-#
-# 适用系统：Debian/Ubuntu 系列 (apt)
-
 set -e
-
 #------------------[ 1. 前置检查 ]------------------#
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -72,8 +68,8 @@ echo "出口配置已更新，网络将暂时中断"
 }
 
 reconfigure_network() {
-    ifdown "$INTERFACE" > /dev/null 2>&1 || true  # 隐藏 ifdown 输出
-    ifup "$INTERFACE" > /dev/null 2>&1  # 隐藏 ifup 输出
+    ifdown "$INTERFACE" > /dev/null 2>&1 || true
+    ifup "$INTERFACE" > /dev/null 2>&1
 }
 
 #------------------[ 主逻辑 ]------------------#
@@ -132,10 +128,8 @@ if ! validate_ip "$additional_ip"; then
     exit 1
 fi
 
-#------------------[ 更新接口配置 ]------------------#
+#------------------[ 更新网络配置 ]------------------#
 update_network_interface "$additional_ip" "$gateway"
-
-#------------------[ 重新启动网络服务 ]------------------#
 reconfigure_network "$INTERFACE"
 
 #------------------[ 展示当前出口 ]------------------#
