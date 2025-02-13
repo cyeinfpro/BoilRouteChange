@@ -161,12 +161,6 @@ fi
 
 base="${primary_ip%0}"
 
-#------------------[ 跳过 Release 文件时间戳验证 ]------------------#
-cat <<EOF >/etc/apt/apt.conf.d/99IgnoreTimestamp
-Acquire::Check-Valid-Until "false";
-Acquire::Check-Date "false";
-EOF
-
 #------------------[ 初始自动备份 ]------------------#
 backup_network_interfaces
 
@@ -206,20 +200,6 @@ additional_ip="${base}${choice}"
 if ! validate_ip "$additional_ip"; then
     echo "错误：计算出的 IP 地址 $additional_ip 无效。"
     exit 1
-fi
-
-#------------------[ 更新网络组件并卸载不必要的组件 ]------------------#
-echo "开始执行 apt-get update "
-DEBIAN_FRONTEND=noninteractive apt-get update -y
-DEBIAN_FRONTEND=noninteractive apt-get purge -y netplan.io systemd-networkd network-manager ifupdown || true
-apt-get autoremove -y
-
-# 重新安装 ifupdown
-DEBIAN_FRONTEND=noninteractive apt-get install -y ifupdown
-
-# 若存在 /etc/netplan 目录，则备份后移除
-if [ -d /etc/netplan ]; then
-    mv /etc/netplan "/etc/netplan.bak.$(date +%s)" || true
 fi
 
 #------------------[ 更新接口配置 ]------------------#
