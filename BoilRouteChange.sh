@@ -84,10 +84,8 @@ if [ -z "$primary_ip" ]; then
     echo "错误：不是HKBN All In One。"
     exit 1
 fi
-echo "检测到的主 IP：$primary_ip"
-
 gateway=$(get_default_gateway)
-echo "检测到的默认网关：$gateway"
+echo "IP：$primary_ip, 默认网关：$gateway"
 
 if ! validate_gateway "$gateway"; then
     echo "错误：不是HKBN All In One。"
