@@ -101,10 +101,10 @@ echo "  1 = Telus"
 echo "  2 = Hinet"
 echo "  3 = HKT"
 echo "  4 = Sony"
-echo "  5 = CMHK"
+echo "  5 = CMHK Broadband"
 echo "  6 = Starlink（未启用）"
 echo "  7 = SK Broadband"
-echo "  8 = Smartone 5G"
+echo "  8 = CMHK 5G（未启用）"
 
 read -rp "请选择 (0/1/2/3/4/5/6/7/8): " choice
 
@@ -139,10 +139,10 @@ export_map=(
     [2]="Hinet"
     [3]="HKT"
     [4]="Sony"
-    [5]="CMHK"
+    [5]="CMHK Broadband"
     [6]="Starlink（未启用）"
     [7]="SK Broadband"
-    [8]="Smartone 5G"
+    [8]="CMHK 5G（未启用）"
 )
 
 echo "当前出口为 ${export_map[$choice]}"
