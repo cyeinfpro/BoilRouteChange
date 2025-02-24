@@ -102,7 +102,7 @@ echo "  2 = Hinet"
 echo "  3 = HKT Broadband"
 echo "  4 = Sony"
 echo "  5 = CMHK Broadband"
-echo "  6 = Starlink（未启用）"
+echo "  6 = JP EDU"
 echo "  7 = SK Broadband"
 echo "  8 = HKT 5G"
 
@@ -140,7 +140,7 @@ export_map=(
     [3]="HKT Broadband"
     [4]="Sony"
     [5]="CMHK Broadband"
-    [6]="Starlink（未启用）"
+    [6]="JP EDU"
     [7]="SK Broadband"
     [8]="HKT 5G"
 )
