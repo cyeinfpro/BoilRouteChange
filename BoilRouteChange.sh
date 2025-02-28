@@ -105,8 +105,9 @@ echo "  5 = CMHK Broadband"
 echo "  6 = JP EDU"
 echo "  7 = SK Broadband"
 echo "  8 = HKT 5G"
+echo "  9 = Verizon 5G"
 
-read -rp "请选择 (0/1/2/3/4/5/6/7/8): " choice
+read -rp "请选择 (0/1/2/3/4/5/6/7/8/9): " choice
 
 if [[ "$choice" = "0" ]]; then
     echo "source /etc/network/interfaces.d/*" > /etc/network/interfaces
@@ -115,7 +116,7 @@ if [[ "$choice" = "0" ]]; then
     exit 0
 fi
 
-if [[ ! "$choice" =~ ^[0-8]$ ]]; then
+if [[ ! "$choice" =~ ^[0-9]$ ]]; then
     echo "无效选择，脚本退出。"
     exit 1
 fi
@@ -143,6 +144,7 @@ export_map=(
     [6]="JP EDU"
     [7]="SK Broadband"
     [8]="HKT 5G"
+    [9]="Verizon 5G"
 )
 
 echo "当前出口为 ${export_map[$choice]}"
