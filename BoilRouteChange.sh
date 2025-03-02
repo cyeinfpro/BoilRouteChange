@@ -104,7 +104,7 @@ echo "  4 = Sony"
 echo "  5 = CMHK Broadband"
 echo "  6 = JP EDU"
 echo "  7 = SK Broadband"
-echo "  8 = HKT 5G"
+echo "  8 = Smatone 5g"
 echo "  9 = Verizon 5G"
 
 read -rp "请选择 (0/1/2/3/4/5/6/7/8/9): " choice
@@ -143,7 +143,7 @@ export_map=(
     [5]="CMHK Broadband"
     [6]="JP EDU"
     [7]="SK Broadband"
-    [8]="HKT 5G"
+    [8]="Smatone 5g"
     [9]="Verizon 5G"
 )
 
